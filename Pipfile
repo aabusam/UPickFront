@@ -1,0 +1,19 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+django = "*"
+mysqlclient = "*"
+djangorestframework = "*"
+django-debug-toolbar = "*"
+drf-nested-routers = "*"
+django-filter = "*"
+gunicorn = "*"
+geopy = "*"
+update = "*"
+numpy = "*"
+gdal = "==3.4.1"
+
+[dev-packages]
