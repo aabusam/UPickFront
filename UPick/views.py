@@ -60,10 +60,10 @@ class PlantViewSet(ModelViewSet):
     pagination_class = UPickPagination
 
     http_method_names = ['get']
-    queryset = FarmPlants.objects.prefetch_related('plant', 'farm','farm__working_hours', 'farm__address').all()
+    queryset = FarmPlants.objects.prefetch_related('plant', 'plant__category','farm','farm__working_hours', 'farm__address').all()
     serializer_class = PlantFarmsSerializer
-    # filter_backends = [DjangoFilterBackend]
-    # filterset_fields = ['category']
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['plant__category', 'farm', 'plant']
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())

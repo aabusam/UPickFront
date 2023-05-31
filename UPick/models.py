@@ -14,6 +14,9 @@ class Farm(models.Model):
     website = models.CharField(max_length = 2000, null=True)
     last_updated = models.DateTimeField(auto_now=True)
 
+    def __str__(self) -> str:
+        return f"{self.title}"
+
 class Address(models.Model):
     # 1315 Castlemont Ave San Jose CA 95128 
     street = models.CharField(max_length=100)
