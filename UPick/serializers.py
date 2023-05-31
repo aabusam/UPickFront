@@ -5,6 +5,7 @@ from .models import Farm, WorkingHour, Plant, PlantCategory, FarmPlants, Address
 
 # Helper Serializers
 
+# ------------------- Woking Hours Serializers ----------------------------#
 class WorkingHoursSerializer(serializers.ModelSerializer):
     is_open = serializers.SerializerMethodField()
 
@@ -21,14 +22,6 @@ class WorkingHoursSerializer(serializers.ModelSerializer):
                 return True
             return False
         return None
-    
-    def to_representation(self, instance):
-        representation = super().to_representation(instance)
-        day = representation.pop('day')
-        opening_time = representation.pop('opening_time')
-        closing_time = representation.pop('closing_time')
-        is_open = representation.pop('is_open')
-        return [{day: {'opening_hours': opening_time, 'closing_hours': closing_time, 'is_open': is_open}}]
 
 class ListWorkingHoursSerializer(serializers.ModelSerializer):
     is_open = serializers.SerializerMethodField()
@@ -58,39 +51,73 @@ class ListWorkingHoursSerializer(serializers.ModelSerializer):
             return representation
         return None
 
-class ListFarmAddressSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Address
-        fields = ['lat', 'long']
-    
+# ------------------- Farm Address Serializer ----------------------------#
 
 class FarmAddressSerializer(serializers.ModelSerializer):
     class Meta:
         model = Address
         fields = ['street', 'city', 'state', 'country', 'zip_code', 'lat', 'long']
+    
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        lat = representation.pop('lat')
+        long = representation.pop('long')
 
+        street = representation.pop('street')
+        city = representation.pop('city')
+        state = representation.pop('state')
+        country = representation.pop('country')
+        zip_code = representation.pop('zip_code')
+
+        return {'street':street,'city':city,'state':state,'country':country,'zip_code':zip_code,'geo_location': {'lat': lat, 'long': long}}
+
+# ------------------- Plant Category Serializer ----------------------------#
 
 class PlantCategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = PlantCategory
         fields = ['id','name']
 
+class PlantSerializer(serializers.ModelSerializer):
+    
+    category = PlantCategorySerializer()
+    class Meta:
+        model = Plant
+        fields = ['id','title', 'category', 'scientific_name', 'country_of_origin']
+
+# ------------------- Farm Plant Serializer ----------------------------#
+
 class FarmPlantSerializer(serializers.ModelSerializer):
 
-    id = serializers.IntegerField(source='plant.id')
-    title = serializers.CharField(source='plant.title')
-    category = PlantCategorySerializer(source = 'plant.category')
-
-    plant = serializers.HyperlinkedRelatedField(
-        view_name='plant-detail',
-        read_only=True,
-    )
+    plant = PlantSerializer()
 
     class Meta:
         model = FarmPlants
-        fields = ['id', 'title', 'category', 'image_url', 'season_start', 'season_end', 'organic', 'plant']
+        fields = ['image_url', 'season_start', 'description' ,'season_end', 'organic', 'plant']
+
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        plant = representation.pop('plant')
+        representation = {
+            'id': instance.id,
+            'title': plant['title'],
+            'category': plant['category'],
+            'image_url': instance.image_url,
+            'description': instance.description,
+            'season_start': instance.season_start,
+            'season_end' : instance.season_end,
+            'organic' : instance.organic,
+            'scientific_name': plant['scientific_name'],
+            'country_of_origin': plant['country_of_origin'],
+            'plant_farm': {}
+        }
+        return representation
+
 
 # Main Serilaizers 
+
+# ------------------- Farm Serializers ----------------------------#
 
 class FarmDetailSerializer(serializers.ModelSerializer):
     working_hours= WorkingHoursSerializer(many=True)
@@ -99,31 +126,83 @@ class FarmDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Farm 
-        fields = ['id', 'image_url', 'title', 'description', 'address', 'working_hours','entrance_fee',
-                  'phone', 'email', 'website', 'farm_plants']
+        fields = ['id', 
+                  'image_url', 
+                  'title', 
+                  'working_hours', 
+                  'description', 
+                  'address',
+                  'entrance_fee',
+                  'phone', 
+                  'email', 
+                  'website', 
+                  'farm_plants']
+    
+    
         
 class FarmListSerializer(serializers.ModelSerializer):
     working_hours= ListWorkingHoursSerializer(many=True)
-    address = ListFarmAddressSerializer()
+    address = FarmAddressSerializer()
 
-    farm = serializers.HyperlinkedIdentityField(
-        view_name='farm-detail',
-        read_only=True,
-    )
     class Meta:
         model = Farm 
-        fields = ['id', 'image_url', 'title', 'farm', 'working_hours', 'address']
+        fields = ['id', 
+                  'image_url', 
+                  'title', 
+                  'working_hours', 
+                  'description', 
+                  'address',
+                  'entrance_fee',
+                  'phone', 
+                  'email', 
+                  'website', 
+                  ]
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
         working_hours = representation['working_hours']
+        address = representation['address']
         non_null_working_hours = [wh for wh in working_hours if wh is not None]
-        representation['working_hours'] = non_null_working_hours
+        representation = {
+            'id': instance.id,
+            'image_url': instance.image_url,
+            'title': instance.title,
+            'working_hours': non_null_working_hours,
+            'description': instance.description,
+            'address': address,
+            'entrance_fee': instance.entrance_fee,
+            'phone': instance.phone,
+            'email': instance.email,
+            'website': instance.website,
+            'farm_plants': []
+        }
         return representation
 
-class PlantSerializer(serializers.ModelSerializer):
-    category = PlantCategorySerializer()
+
+# ------------------- Plant Serializers ----------------------------#
+
+class PlantFarmsSerializer(serializers.ModelSerializer):
+    plant = PlantSerializer()
+    farm = FarmListSerializer()
     class Meta:
-        model = Plant
-        fields = ['id','title', 'scientific_name', 'country_of_origin', 
-                   'last_updated', 'category']
+        model = FarmPlants
+        fields = ['plant','farm']
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        plant = representation.pop('plant')
+        farm = representation.pop('farm')
+        representation = {
+            'id': instance.id,
+            'title': plant['title'],
+            'category': plant['category'],
+            'image_url': instance.image_url,
+            'description': instance.description,
+            'season_start': instance.season_start,
+            'season_end' : instance.season_end,
+            'organic' : instance.organic,
+            'scientific_name': plant['scientific_name'],
+            'country_of_origin': plant['country_of_origin'],
+            'plant_farm': farm
+        }
+        return representation

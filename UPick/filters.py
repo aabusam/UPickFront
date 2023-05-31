@@ -1,20 +1,25 @@
 from django_filters import rest_framework as filters
-from django.db.models import Q
+from django.db.models import Q, DecimalField, ExpressionWrapper, F, Value
 from django.utils import timezone
-from .models import Farm
+from django.db.models.functions import Coalesce
 from rest_framework.exceptions import ValidationError
+from .models import Farm
 from math import cos, radians
 import math
 
 class FarmFilter(filters.FilterSet):
-    is_open = filters.BooleanFilter(method='filter_is_open')
-    radius = filters.NumberFilter(method='filter_radius_long_lat')
-    address__lat = filters.NumberFilter(method='filter_radius_long_lat')
-    address__long = filters.NumberFilter(method='filter_radius_long_lat')
+    
+    is_open = filters.BooleanFilter(method='filter_is_open', label='Is Open')
+    radius = filters.NumberFilter(method='filter_radius_long_lat', label='Radius')
+    address__lat = filters.NumberFilter(method='filter_radius_long_lat', label='Latitude')
+    address__long = filters.NumberFilter(method='filter_radius_long_lat', label='Longitude')
+    entrance_fee = filters.RangeFilter(method='filter_entrance_fee', label='Entrance Fee')
+
 
     class Meta:
         model = Farm
-        fields = ['is_open', 'radius', 'address__lat', 'address__long']
+        
+        fields = ['radius', 'address__lat', 'address__long','is_open', 'entrance_fee']
 
     #  ------------ filtering based on who is open ------------------- #
 
@@ -69,4 +74,25 @@ class FarmFilter(filters.FilterSet):
             Q(address__long__lte =  max_longitude) 
         )
 
+        return queryset
+    
+    #  ------------ filtering based on entrance fee------------------- #
+
+    def filter_entrance_fee(self, queryset, name, value):
+        entrance_fee_min = value.start if value.start is not None else 0
+        entrance_fee_max = value.stop if value.stop is not None else 999999999
+
+        # Handle null values by considering them as zero
+        entrance_fee_coalesce = ExpressionWrapper(
+            Coalesce(F('entrance_fee'), Value(0, output_field=DecimalField())),
+            output_field=DecimalField()
+        )
+
+        # Filter farms with entrance fees within the specified range
+        queryset = queryset.annotate(entrance_fee_coalesce=entrance_fee_coalesce)
+        queryset = queryset.filter(
+            entrance_fee_coalesce__gte=entrance_fee_min,
+            entrance_fee_coalesce__lte=entrance_fee_max
+        )
+        
         return queryset

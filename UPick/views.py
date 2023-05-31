@@ -3,8 +3,8 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from django_filters import rest_framework as filters
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import Farm, Plant
-from .serializers import FarmListSerializer, FarmDetailSerializer, PlantSerializer
+from .models import Farm, FarmPlants
+from .serializers import FarmListSerializer, FarmDetailSerializer, PlantFarmsSerializer
 from .filters import FarmFilter
 
 class UPickPagination(PageNumberPagination):
@@ -36,7 +36,7 @@ class FarmViewSet(ModelViewSet):
             return FarmListSerializer
         elif self.action == 'retrieve':
             return FarmDetailSerializer
-
+    
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
@@ -54,16 +54,16 @@ class FarmViewSet(ModelViewSet):
             'results': serializer.data
         }
         return Response(response_data)
-    
+
 
 class PlantViewSet(ModelViewSet):
     pagination_class = UPickPagination
 
     http_method_names = ['get']
-    queryset = Plant.objects.prefetch_related('category').all()
-    serializer_class = PlantSerializer
-    filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['category']
+    queryset = FarmPlants.objects.prefetch_related('plant', 'farm','farm__working_hours', 'farm__address').all()
+    serializer_class = PlantFarmsSerializer
+    # filter_backends = [DjangoFilterBackend]
+    # filterset_fields = ['category']
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
