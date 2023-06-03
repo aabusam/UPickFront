@@ -11,9 +11,8 @@ django-debug-toolbar = "*"
 drf-nested-routers = "*"
 django-filter = "*"
 gunicorn = "*"
-geopy = "*"
-update = "*"
-numpy = "*"
-gdal = "==3.4.1"
 
 [dev-packages]
+
+[requires]
+python_version = "3.9"
